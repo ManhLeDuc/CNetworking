@@ -14,6 +14,7 @@ typedef struct {
     CoursePeriod startPeriod;
     CoursePeriod endPeriod;
     int weeks[100];
+    int weekCount;
     char room[50];
 } Course;
 
@@ -36,6 +37,37 @@ int readPeriod(char *inputString, CoursePeriod *tempCoursePeriod){
     return 1;
 }
 
+void weekRangetoWeek(char inputString, int *week, int *weekCount){
+
+}
+
+void readWeek(char *inputString, int *weeks){
+    char tempString[1000];
+    int weekCount = 0;
+    int flag = 0;
+    int i = 0;
+    int k = 0;
+    while(inputString[k]!='\0')
+    {
+        while(inputString[k]!=','){
+            tempString[i] = inputString[i];
+            if(tempString[i]='-');
+                flag = 1;
+            i++;
+            k++;
+        }
+        tempString[i] = '\0';
+        if(flag!=1){
+            weeks[weekCount] = atoi(tempString);
+            weekCount++;
+        }
+        else{
+            weekRangetoWeek(tempString,weeks,&weekCount);
+        } 
+        i = 0;
+    }
+}
+
 void readWeekAndRoom(char *inputString, Course *tempCourse){
     char tempStringNum[2];
     char tempString[1000];
@@ -45,14 +77,43 @@ void readWeekAndRoom(char *inputString, Course *tempCourse){
         k--;            
     }
     strcpy(tempCourse->room,inputString+k+1);
+    strcpy(tempString,inputString);
+    tempString[k+1] = '\0';
+    readWeek(tempString,tempCourse->weeks);
 }
 
 char *weekToString(int week){
     char *outputString;
     outputString = malloc(20);
     switch(week){
-        case 1: strcpy(outputString,"Monday"); break;
+        case 2: strcpy(outputString,"Monday"); break;
+        case 3: strcpy(outputString,"Tuesday"); break;
+        case 4: strcpy(outputString,"Wednesday"); break;
+        case 5: strcpy(outputString,"Thursday"); break;
+        case 6: strcpy(outputString,"Friday"); break;
+        case 7: strcpy(outputString,"Saturday"); break;
+        case 8: strcpy(outputString, "Sunday"); break;
+        default: outputString[0] = '\0';
     }
+    return outputString;
+}
+
+char *ampmToString(int ampm){
+    char *outputString;
+    outputString = malloc(20);
+    switch(ampm){
+        case 1: strcpy(outputString,"Morning"); break;
+        case 2: strcpy(outputString,"Afternoon"); break;
+        default: outputString[0] = '\0';
+    }
+    return outputString;
+}
+
+char *periodArrayToString(int ampm){
+    char *outputString;
+    outputString = malloc(20);
+    
+    return outputString;
 }
 
 int readSchedule(FILE *file, Course *tempCourse){
@@ -85,12 +146,14 @@ int readSchedule(FILE *file, Course *tempCourse){
     return 1;
 }
 
+
+
 void printInfoCourse(Course* tempCourse){
-    printf("%s\t|%s\t|%d\t|%d\t|%d-%d\t|%s\t|%s\t|",
+    printf("%s\t|%s\t|%s\t|%s\t|%d-%d\t|%s\t|%s\t|",
     tempCourse->code,
     tempCourse->name,
-    tempCourse->startPeriod.day,
-    tempCourse->startPeriod.ampm,
+    weekToString(tempCourse->startPeriod.day),
+    ampmToString(tempCourse->startPeriod.ampm),
     tempCourse->startPeriod.period,
     tempCourse->endPeriod.period,
     "alo",

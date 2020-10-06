@@ -37,6 +37,69 @@ void deleteCourse(Course *tempCourse)
     free(tempCourse);
 }
 
+typedef struct listNode
+{
+    Course *course;
+    struct listNode *next;
+} node;
+
+typedef struct
+{
+    node *head;
+    node *tail;
+} linkList;
+
+linkList *createList()
+{
+    linkList *tempList = (linkList *)malloc(sizeof(linkList));
+    tempList->head = NULL;
+    tempList->tail = NULL;
+    return tempList;
+}
+
+node *createNode()
+{
+    node *tempNode = (node *)malloc(sizeof(node));
+    tempNode->course = NULL;
+    tempNode->next = NULL;
+    return tempNode;
+}
+
+void addToTailList(linkList *tempList, Course *tempCourse)
+{
+    node *tempNode = createNode();
+    tempNode->course = tempCourse;
+    if (tempList->head == NULL)
+    {
+        tempList->head = tempNode;
+        tempList->tail = tempNode;
+    }
+    else
+    {
+        tempList->tail->next = tempNode;
+        tempList->tail = tempNode;
+    }
+}
+
+node *searchByWeekDayList(linkList *tempList, int weekDay)
+{
+    if (weekDay > 8 || weekDay < 2)
+    {
+        return NULL;
+    }
+    else
+    {
+        node *tempNode = tempList->head;
+        while (tempNode != NULL)
+        {
+            if (tempNode->course->startPeriod.day == weekDay)
+                return tempNode;
+            tempNode = tempNode->next;
+        }
+    }
+    return NULL;
+}
+
 int readPeriod(char *inputString, CoursePeriod *tempCoursePeriod)
 {
     if (strlen(inputString) != 3)
@@ -82,17 +145,17 @@ void clearWeek(int week, Course *tempCourse)
     }
 }
 
-unsigned long setallbitgivenrange(unsigned long n, unsigned long l, unsigned long r) 
-{ 
-    // calculating a number 'range' having set 
-    // bits in the range from l to r and all other 
-    // bits as 0 (or unset). 
-    
-    unsigned long range = (((1UL << (l - 1)) - 1UL) ^     
-                ((1UL << (r)) - 1UL)); 
-  
-    return (n | range); 
-} 
+unsigned long setallbitgivenrange(unsigned long n, int l, int r)
+{
+    // calculating a number 'range' having set
+    // bits in the range from l to r and all other
+    // bits as 0 (or unset).
+
+    unsigned long range = (((1UL << (l)) - 1UL) ^
+                           ((1UL << (r + 1)) - 1UL));
+
+    return (n | range);
+}
 
 void weekRangetoWeek(char *inputString, Course *tempCourse)
 {
@@ -121,19 +184,23 @@ void weekRangetoWeek(char *inputString, Course *tempCourse)
     tempString[i] = '\0';
     endWeek = atoi(tempString);
 
-    if(startWeek > endWeek)
+    if (startWeek > endWeek)
         return;
-    else if(startWeek <= 0){
-        return;
-    }
-    else if(endWeek >= 64){
+    else if (startWeek <= 0)
+    {
         return;
     }
-    else if(endWeek==startWeek){
+    else if (endWeek >= 64)
+    {
+        return;
+    }
+    else if (endWeek == startWeek)
+    {
         setWeek(startWeek, tempCourse);
     }
-    else{
-        tempCourse->weeks = setallbitgivenrange(tempCourse->weeks,startWeek-1,endWeek-1);
+    else
+    {
+        tempCourse->weeks = setallbitgivenrange(tempCourse->weeks, startWeek - 1, endWeek - 1);
     }
 }
 
@@ -143,7 +210,7 @@ void readWeek(char *inputString, Course *tempCourse)
     int flag = 0;
     int i = 0;
     int k = 0;
- 
+
     while (inputString[k] != '\0')
     {
         while (inputString[k] != ',')
@@ -186,7 +253,7 @@ void readWeekAndRoom(char *inputString, Course *tempCourse)
     readWeek(tempString, tempCourse);
 }
 
-char *weekToString(int week)
+char *weekDayToString(int week)
 {
     char *outputString;
     outputString = malloc(20);
@@ -219,10 +286,55 @@ char *weekToString(int week)
     return outputString;
 }
 
+char *weekRangeToString(unsigned long weeks)
+{
+    int Stringlength = 0;
+    int bitStatus;
+    int start = 0;
+    int end = 0;
+    char numString[20];
+    char *outputString = (char *)malloc(150);
+    for (int i = 0; i < 64; i++)
+    {
+        bitStatus = (weeks >> i) & 1UL;
+        if (bitStatus != 0)
+        {
+            if (start == 0)
+            {
+                start = i + 1;
+                end = start;
+            }
+            else
+            {
+                end = i + 1;
+            }
+        }
+        else
+        {
+            if (start != 0)
+            {
+                if (start != end)
+                {
+                    sprintf(numString, "%d-%d,", start, end);
+                    strcat(outputString, numString);
+                }
+                else
+                {
+                    sprintf(numString, "%d,", start);
+                    strcat(outputString, numString);
+                }
+                start = end = 0;
+            }
+        }
+    }
+    outputString[strlen(outputString) - 1] = '\0';
+    return outputString;
+}
+
 char *ampmToString(int ampm)
 {
     char *outputString;
-    outputString = malloc(20);
+    outputString = (char *)malloc(20);
     switch (ampm)
     {
     case 1:
@@ -245,77 +357,95 @@ char *periodArrayToString(int ampm)
     return outputString;
 }
 
-int readSchedule(FILE *file, Course *tempCourse)
+int readSchedule(FILE *file, linkList *tempList)
 {
     char c;
     char tempString[1000];
-
-    fscanf(file, "%[^\t]s", tempCourse->code);
-    fgetc(file);
-
-    fscanf(file, "%[^\t]s", tempCourse->name);
-    fgetc(file);
-
-    fscanf(file, "%[^,]s", tempString);
-    fgetc(file);
-
-    if (readPeriod(tempString, &(tempCourse->startPeriod)) == 0)
+    Course *tempCourse;
+    while (!feof(file))
     {
-        return 0;
+        tempCourse = createCourse();
+        fscanf(file, "%[^\t]s", tempCourse->code);
+        fgetc(file);
+
+        fscanf(file, "%[^\t]s", tempCourse->name);
+        fgetc(file);
+
+        fscanf(file, "%[^,]s", tempString);
+        fgetc(file);
+
+        if (readPeriod(tempString, &(tempCourse->startPeriod)) == 0)
+        {
+            return 0;
+        }
+
+        fscanf(file, "%[^,]s", tempString);
+        fgetc(file);
+
+        if (readPeriod(tempString, &(tempCourse->endPeriod)) == 0)
+        {
+            return 0;
+        }
+
+        fscanf(file, "%[^;]s", tempString);
+        fgetc(file);
+        fgetc(file);
+
+        readWeekAndRoom(tempString, tempCourse);
+
+        addToTailList(tempList, tempCourse);
     }
 
-    fscanf(file, "%[^,]s", tempString);
-    fgetc(file);
-
-    if (readPeriod(tempString, &(tempCourse->endPeriod)) == 0)
-    {
-        return 0;
-    }
-
-    fscanf(file, "%[^;]s", tempString);
-    fgetc(file);
-
-    readWeekAndRoom(tempString, tempCourse);
     return 1;
 }
 
 void printInfoCourse(Course *tempCourse)
 {
-    char *weekString = weekToString(tempCourse->startPeriod.day);
+    char *weekDayString = weekDayToString(tempCourse->startPeriod.day);
     char *ampmString = ampmToString(tempCourse->startPeriod.ampm);
+    char *weekRangeString = weekRangeToString(tempCourse->weeks);
 
-    printf("%s\t|%s\t|%s\t|%s\t|%d-%d\t|%x\t|%s\t|",
+    printf("%-9s\t|%-20s\t|%-10s\t|%-10s\t|%d-%d\t|%s\t|%s\t|\n",
            tempCourse->code,
            tempCourse->name,
-           weekString,
+           weekDayString,
            ampmString,
            tempCourse->startPeriod.period,
            tempCourse->endPeriod.period,
-           tempCourse->weeks,
+           weekRangeString,
            tempCourse->room);
-    puts("\n");
 
-    free(weekString);
+    free(weekDayString);
     free(ampmString);
+    free(weekRangeString);
+}
+
+void printInfoCourseList(linkList* tempList){
+    node *tempNode = tempList->head;
+    while(tempNode!=NULL){
+        printInfoCourse(tempNode->course);
+        tempNode = tempNode->next;
+    }
+    return;
 }
 
 int main(int argc, char **argv)
 {
     char *fileName;
-    Course *tempCourse = createCourse();
-    if(argc < 2)
+    
+    if (argc < 2)
     {
         printf("Too few agruments\n");
         return 0;
     }
-
+    linkList *tempList = createList();
     fileName = argv[1];
     FILE *schedule;
 
     schedule = fopen(fileName, "r");
-    readSchedule(schedule, tempCourse);
+    readSchedule(schedule, tempList);
 
-    printInfoCourse(tempCourse);
+    printInfoCourseList(tempList);
     fclose(schedule);
     return 0;
 }
